@@ -32,3 +32,7 @@ to set up some initial data. Finally
 to run server.  
 Basically the same as in the sample project.  
 Access the client through http://127.0.0.1:5000/admin/  
+
+# Testing
+
+Run pytest from the project folder
