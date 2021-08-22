@@ -61,6 +61,16 @@ def _populate_db():
         db.session.add(ing)
         db.session.add(dri)
         db.session.add(pair)
+    rec = Recipe(
+        name="recipe-x",
+        text="text-x"
+    )
+    ing = Ingredient(
+        name="ingredient-x",
+        unit="x",
+    )
+    db.session.add(rec)
+    db.session.add(ing)
     db.session.commit()
 
 def _get_recipe_json(number=1):
@@ -69,6 +79,14 @@ def _get_recipe_json(number=1):
     """
     
     return {"name": "extra-recipe-{}".format(number), "text": "big text"}
+
+def _get_pairing_json(number=1):
+    """
+    Creates a valid sensor JSON object to be used for PUT and POST tests.
+    """
+    
+    return {"recipe": "recipe-2", "ingredient": "ingredient-1", "amount": 1}
+
 
 def _get_ingredient_json(number=1):
     """
@@ -208,6 +226,28 @@ def _check_control_post_method_recipe(ctrl, client, obj):
     resp = client.post(href, json=body)
     assert resp.status_code == 201
 
+def _check_control_post_method_pairing(ctrl, client, obj):
+    """
+    Checks a POST type control from a JSON object be it root document or an item
+    in a collection. In addition to checking the "href" attribute, also checks
+    that method, encoding and schema can be found from the control. Also
+    validates a valid sensor against the schema of the control to ensure that
+    they match. Finally checks that using the control results in the correct
+    status code of 201.
+    """
+    
+    ctrl_obj = obj["@controls"][ctrl]
+    href = ctrl_obj["href"]
+    method = ctrl_obj["method"].lower()
+    encoding = ctrl_obj["encoding"].lower()
+    schema = ctrl_obj["schema"]
+    assert method == "post"
+    assert encoding == "json"
+    body = _get_pairing_json()
+    validate(body, schema)
+    resp = client.post(href, json=body)
+    assert resp.status_code == 201
+
 def _check_control_post_method_ingredient(ctrl, client, obj):
     """
     Checks a POST type control from a JSON object be it root document or an item
@@ -332,6 +372,31 @@ class TestRecipeItem(object):
         valid.pop("text")
         resp = client.put(self.RESOURCE_URL, json=valid)
         assert resp.status_code == 400
+
+    #Testing not-paired recipe deletion
+    def test_delete(self, client):
+        resp = client.delete("/api/recipes/recipe-x/")
+        assert resp.status_code == 204
+        resp = client.delete("/api/recipes/recipe-x/")
+        assert resp.status_code == 404
+        resp = client.delete("/api/recipes/recipe-x/")
+        assert resp.status_code == 404
+
+class TestRecingpairings(object):
+    
+    RESOURCE_URL = "/api/recipes/recipe-1/ingredients/"
+    INVALID_URL = "/api/recipes/reci-1/ingredients/"
+    
+    def test_get(self, client):
+        resp = client.get(self.RESOURCE_URL)
+        assert resp.status_code == 200
+        body = json.loads(resp.data)
+        _check_namespace(client, body)
+        _check_control_get_method("bigrec:recipe", client, body)
+        _check_control_post_method_pairing("bigrec:add-pairing", client, body)
+        #_check_control_delete_method("bigrec:delete", client, body)
+        resp = client.get(self.INVALID_URL)
+        assert resp.status_code == 404
         
 class TestIngredientCollection(object):
     
@@ -343,7 +408,7 @@ class TestIngredientCollection(object):
         body = json.loads(resp.data)
         _check_namespace(client, body)
         _check_control_post_method_ingredient("bigrec:add-ingredient", client, body)
-        assert len(body["items"]) == 3
+        assert len(body["items"]) == 4
         for item in body["items"]:
             _check_control_get_method("self", client, item)
             _check_control_get_method("profile", client, item)
@@ -385,7 +450,6 @@ class TestIngredientItem(object):
         _check_control_get_method("profile", client, body)
         _check_control_get_method("collection", client, body)
         _check_control_put_method_ingredient("edit", client, body)
-        #_check_control_delete_method("bigrec:delete", client, body)
         resp = client.get(self.INVALID_URL)
         assert resp.status_code == 404
 
@@ -413,6 +477,15 @@ class TestIngredientItem(object):
         valid.pop("unit")
         resp = client.put(self.RESOURCE_URL, json=valid)
         assert resp.status_code == 400
+
+    #Testing not-paired ingredient deletion
+    def test_delete(self, client):
+        resp = client.delete("/api/ingredients/ingredient-x/")
+        assert resp.status_code == 204
+        resp = client.delete("/api/ingredients/ingredient-x/")
+        assert resp.status_code == 404
+        resp = client.delete("/api/ingredients/ingredient-x/")
+        assert resp.status_code == 404
 
 class TestDrinkCollection(object):
     
