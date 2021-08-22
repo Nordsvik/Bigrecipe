@@ -22,6 +22,8 @@ First setup environment with
 "export FLASK_ENV=development", or "set FLASK_ENV=development" on Windows,  
 development environment just to be sure  
 
+Populated database can be found in instance, rename it to development.db
+
 "flask init-db"  
 to initialize database  
 "flask testgen"  
